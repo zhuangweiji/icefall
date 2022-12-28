@@ -1,5 +1,141 @@
 ## Results
 
+### zipformer_mmi (zipformer with mmi loss)
+
+See <https://github.com/k2-fsa/icefall/pull/746> for more details.
+
+[zipformer_mmi](./zipformer_mmi)
+
+The tensorboard log can be found at
+<https://tensorboard.dev/experiment/xyOZUKpEQm62HBIlUD4uPA/>
+
+You can find a pretrained model, training logs, decoding logs, and decoding
+results at:
+<https://huggingface.co/Zengwei/icefall-asr-librispeech-zipformer-mmi-2022-12-08>
+
+Number of model parameters: 69136519, i.e., 69.14 M
+
+|                          | test-clean | test-other  | comment             |
+|--------------------------|------------|-------------|---------------------|
+| 1best                    | 2.54       | 5.65        | --epoch 30 --avg 10 |
+| nbest                    | 2.54       | 5.66        | --epoch 30 --avg 10 |
+| nbest-rescoring-LG       | 2.49       | 5.42        | --epoch 30 --avg 10 |
+| nbest-rescoring-3-gram   | 2.52       | 5.62        | --epoch 30 --avg 10 |
+| nbest-rescoring-4-gram   | 2.5        | 5.51        | --epoch 30 --avg 10 |
+
+The training commands are:
+```bash
+export CUDA_VISIBLE_DEVICES="0,1,2,3"
+
+./zipformer_mmi/train.py \
+  --world-size 4 \
+  --master-port 12345 \
+  --num-epochs 30 \
+  --start-epoch 1 \
+  --lang-dir data/lang_bpe_500 \
+  --max-duration 500 \
+  --full-libri 1 \
+  --use-fp16 1 \
+  --exp-dir zipformer_mmi/exp
+```
+
+The decoding commands for the transducer branch are:
+```bash
+export CUDA_VISIBLE_DEVICES="5"
+
+for m in nbest nbest-rescoring-LG nbest-rescoring-3-gram nbest-rescoring-4-gram; do
+  ./zipformer_mmi/decode.py \
+    --epoch 30 \
+    --avg 10 \
+    --exp-dir ./zipformer_mmi/exp/ \
+    --max-duration 100 \
+    --lang-dir data/lang_bpe_500 \
+    --nbest-scale 1.2 \
+    --hp-scale 1.0 \
+    --decoding-method $m
+done
+```
+
+
+### pruned_transducer_stateless7_ctc (zipformer with transducer loss and ctc loss)
+
+See <https://github.com/k2-fsa/icefall/pull/683> for more details.
+
+[pruned_transducer_stateless7_ctc](./pruned_transducer_stateless7_ctc)
+
+The tensorboard log can be found at
+<https://tensorboard.dev/experiment/hxlGAhOPToGmRLZFnAzPWw/>
+
+You can find a pretrained model, training logs, decoding logs, and decoding
+results at:
+<https://huggingface.co/Zengwei/icefall-asr-librispeech-pruned-transducer-stateless7-ctc-2022-12-01>
+
+Number of model parameters: 70561891, i.e., 70.56 M
+
+|                          | test-clean | test-other  | comment            |
+|--------------------------|------------|-------------|--------------------|
+| greedy search            | 2.23       | 5.19        | --epoch 30 --avg 8 |
+| modified beam search     | 2.21       | 5.12        | --epoch 30 --avg 8 |
+| fast beam search         | 2.23       | 5.18        | --epoch 30 --avg 8 |
+| ctc decoding             | 2.48       | 5.82        | --epoch 30 --avg 9 |
+| 1best                    | 2.43       | 5.22        | --epoch 30 --avg 9 |
+| nbest                    | 2.43       | 5.22        | --epoch 30 --avg 9 |
+| nbest rescoring          | 2.34       | 5.05        | --epoch 30 --avg 9 |
+| whole lattice rescoring  | 2.34       | 5.04        | --epoch 30 --avg 9 |
+
+The training commands are:
+```bash
+export CUDA_VISIBLE_DEVICES="0,1,2,3"
+
+./pruned_transducer_stateless7_ctc/train.py \
+  --world-size 4 \
+  --num-epochs 30 \
+  --full-libri 1 \
+  --use-fp16 1 \
+  --max-duration 750 \
+  --exp-dir pruned_transducer_stateless7_ctc/exp \
+  --feedforward-dims  "1024,1024,2048,2048,1024" \
+  --ctc-loss-scale 0.2 \
+  --master-port 12535
+```
+
+The decoding commands for the transducer branch are:
+```bash
+for m in greedy_search fast_beam_search modified_beam_search ; do
+  for epoch in 30; do
+    for avg in 8; do
+      ./pruned_transducer_stateless7_ctc/decode.py \
+          --epoch $epoch \
+          --avg $avg \
+          --use-averaged-model 1 \
+          --exp-dir ./pruned_transducer_stateless7_ctc/exp \
+          --feedforward-dims  "1024,1024,2048,2048,1024" \
+          --max-duration 600 \
+          --decoding-method $m
+    done
+  done
+done
+```
+
+The decoding commands for the ctc branch are:
+```bash
+for m in ctc-decoding nbest nbest-rescoring whole-lattice-rescoring; do
+  for epoch in 30; do
+    for avg in 9; do
+      ./pruned_transducer_stateless7_ctc/ctc_decode.py \
+          --epoch $epoch \
+          --avg $avg \
+          --exp-dir ./pruned_transducer_stateless7_ctc/exp \
+          --max-duration 100 \
+          --decoding-method $m \
+          --hlg-scale 0.6 \
+          --lm-dir data/lm
+    done
+  done
+done
+```
+
+
 ### LibriSpeech BPE training results (Conformer CTC, supporting delay penalty)
 
 #### [conformer_ctc3](./conformer_ctc3)

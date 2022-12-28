@@ -23,40 +23,44 @@ Usage (for non-streaming mode):
 
 (1) ctc-decoding
 ./conformer_ctc3/pretrained.py \
-  --checkpoint conformer_ctc3/exp/pretrained.pt \
+  --nn-model-filename ./conformer_ctc3/exp/cpu_jit.pt \
   --bpe-model data/lang_bpe_500/bpe.model \
   --method ctc-decoding \
   --sample-rate 16000 \
-  test_wavs/1089-134686-0001.wav
+  /path/to/foo.wav \
+  /path/to/bar.wav
 
 (2) 1best
 ./conformer_ctc3/pretrained.py \
-  --checkpoint conformer_ctc3/exp/pretrained.pt \
+  --nn-model-filename ./conformer_ctc3/exp/cpu_jit.pt \
   --HLG data/lang_bpe_500/HLG.pt \
   --words-file data/lang_bpe_500/words.txt  \
   --method 1best \
   --sample-rate 16000 \
-  test_wavs/1089-134686-0001.wav
+  /path/to/foo.wav \
+  /path/to/bar.wav
 
 (3) nbest-rescoring
 ./conformer_ctc3/pretrained.py \
-  --checkpoint conformer_ctc3/exp/pretrained.pt \
+  --nn-model-filename ./conformer_ctc3/exp/cpu_jit.pt \
   --HLG data/lang_bpe_500/HLG.pt \
   --words-file data/lang_bpe_500/words.txt  \
   --G data/lm/G_4_gram.pt \
   --method nbest-rescoring \
   --sample-rate 16000 \
-  test_wavs/1089-134686-0001.wav
+  /path/to/foo.wav \
+  /path/to/bar.wav
 
 (4) whole-lattice-rescoring
 ./conformer_ctc3/pretrained.py \
-  --checkpoint conformer_ctc3/exp/pretrained.pt \
+  --nn-model-filename ./conformer_ctc3/exp/cpu_jit.pt \
   --HLG data/lang_bpe_500/HLG.pt \
   --words-file data/lang_bpe_500/words.txt  \
   --G data/lm/G_4_gram.pt \
   --method whole-lattice-rescoring \
   --sample-rate 16000 \
-  test_wavs/1089-134686-0001.wav
+  /path/to/foo.wav \
+  /path/to/bar.wav
 """
 
 
@@ -287,7 +291,10 @@ def main():
 
     batch_size = nnet_output.shape[0]
     supervision_segments = torch.tensor(
-        [[i, 0, nnet_output.shape[1]] for i in range(batch_size)],
+        [
+            [i, 0, feature_lengths[i] // params.subsampling_factor]
+            for i in range(batch_size)
+        ],
         dtype=torch.int32,
     )
 
